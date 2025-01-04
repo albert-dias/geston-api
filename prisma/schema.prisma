@@ -1,0 +1,104 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserType {
+  ADMIN
+  SUPERADMIN
+  USERENTERPRISE
+  USER
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+}
+
+model Tokens {
+  id      String   @id @default(uuid())
+  user_id String
+  token   String   @unique
+  valid   Boolean
+  expires DateTime
+
+  @@map("tokens")
+}
+
+model User {
+  id            String      @id @default(uuid())
+  enterprise_id String?
+  name          String
+  document      String?
+  password      String
+  phone         String?
+  email         String      @unique
+  user_type     UserType    @default(USER)
+  created_at    DateTime    @default(now())
+  updated_at    DateTime    @updatedAt
+  enterprise    Enterprise? @relation(name: "EnterpriseToUser", fields: [enterprise_id], references: [id])
+
+  @@map("users")
+}
+
+model Enterprise {
+  id           String   @id @default(uuid())
+  fantasy_name String
+  document     String   @unique
+  status       Status   @default(ACTIVE)
+  address      String
+  number       String
+  city         String
+  state        String
+  lat          Float
+  long         Float
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  users        User[]   @relation(name: "EnterpriseToUser")
+
+  @@map("enterprises")
+}
+
+model ProductsEnterprise {
+  id         String   @id @default(uuid())
+  name       String
+  value      Int
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@map("products_enterprise")
+}
+
+model SalesEnterprise {
+  id         String                   @id @default(uuid())
+  total      Int
+  note       String
+  created_at DateTime                 @default(now())
+  updated_at DateTime                 @updatedAt
+  products   ProductsSaleEnterprise[]
+
+  @@map("sales_enterprise")
+}
+
+model ProductsSaleEnterprise {
+  id                  String           @id @default(uuid())
+  quantity            Int
+  value               Int
+  sales_enterprise_id String?
+  created_at          DateTime         @default(now())
+  updated_at          DateTime         @updatedAt
+  sales_enterprise    SalesEnterprise? @relation(fields: [sales_enterprise_id], references: [id])
+
+  @@map("products_sale_enterprise")
+}
