@@ -24,11 +24,18 @@ export async function AuthenticatedUserService({
   password,
 }: IRequest): Promise<IResponse> {
   if (!email || !password) {
-    throw new AppError('Dados incompletos!');
+    throw new AppError('Dados incompletos');
   }
 
   const user = await prisma.user.findFirst({
     where: { email },
+    include: {
+      enterprise: {
+        include: {
+          services_enterprise: true,
+        },
+      },
+    },
   });
 
   if (!user) {
@@ -47,24 +54,12 @@ export async function AuthenticatedUserService({
     await RefreshTokenUserService({ user_id: user.id });
 
   const token = jwt.sign(
-    {
-      name: user.name,
-      email: user.email,
-      user_type: user.user_type,
-    },
+    { name: user.name, email: user.email, user_type: user.user_type },
     secret,
-    {
-      subject: `${user.id}`,
-      expiresIn,
-    }
+    { subject: `${user.id}`, expiresIn }
   );
 
   delete user.password;
 
-  return {
-    user,
-    token,
-    refreshToken,
-    expiresRefreshToken,
-  };
+  return { user, token, refreshToken, expiresRefreshToken };
 }

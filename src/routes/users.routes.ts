@@ -7,7 +7,7 @@ export const usersRouter = Router();
 
 const usersController = new UsersController();
 
-usersRouter.post('/', usersController.create);
+usersRouter.post('/create-account', usersController.create);
 
 // usersRouter.put('/', ensureAuthenticate, usersController.update);
 

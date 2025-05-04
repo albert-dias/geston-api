@@ -20,6 +20,10 @@ export async function RefreshTokenUserService({
     throw new AppError('Id do usuário ausente!');
   }
 
+  await prisma.tokens.deleteMany({
+    where: { user_id, valid: true },
+  });
+
   const refreshToken = `${user_id}${crypto.randomBytes(64).toString('hex')}`;
   const expires = new Date(Date.now() + authConfig.refreshToken.duration);
 

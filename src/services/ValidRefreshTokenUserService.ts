@@ -55,6 +55,9 @@ export async function ValidRefreshTokenUserService({
 
   const user = await prisma.user.findUnique({
     where: { id: validToken.user_id },
+    include: {
+      enterprise: true,
+    },
   });
 
   if (!user) {

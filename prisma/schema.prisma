@@ -16,7 +16,7 @@ datasource db {
 enum UserType {
   ADMIN
   SUPERADMIN
-  USERENTERPRISE
+  MANAGER
   USER
 }
 
@@ -24,6 +24,51 @@ enum Status {
   ACTIVE
   INACTIVE
   BLOCKED
+}
+
+enum TransactionType {
+  INCOME // Entrada de dinheiro (vendas, pagamentos)
+  EXPENSE // Saída de dinheiro (despesas, custos)
+}
+
+enum StatusOrder {
+  INLINE
+  COMPLETED
+  CANCELED
+}
+
+enum PaymentType {
+  PIX
+  CREDITCARD
+  MONEY
+}
+
+enum StockMovementType {
+  IN // Entrada de produto no estoque
+  OUT // Saída de produto no estoque
+  ADJUSTMENT // Ajustes manuais
+}
+
+enum CashMovementType {
+  ENTRY // Entrada de dinheiro
+  EXIT // Saída de dinheiro
+}
+
+enum AccountType {
+  RECEIVABLE // Contas a receber (vendas a prazo, mensalidades)
+  PAYABLE // Contas a pagar (aluguéis, fornecedores)
+}
+
+enum AccountStatus {
+  PENDING
+  PAID
+  OVERDUE
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CANCELED
+  COMPLETED
 }
 
 model Tokens {
@@ -36,69 +81,152 @@ model Tokens {
   @@map("tokens")
 }
 
+model Plan {
+  id          String     @id @default(uuid())
+  title       String
+  description String
+  value       Int
+  months      Int
+  created_at  DateTime   @default(now())
+  updated_at  DateTime   @updatedAt
+  payments    Payments[]
+
+  @@map("plans")
+}
+
 model User {
-  id            String      @id @default(uuid())
+  id            String       @id @default(uuid())
   enterprise_id String?
   name          String
   document      String?
   password      String
   phone         String?
-  email         String      @unique
-  user_type     UserType    @default(USER)
-  created_at    DateTime    @default(now())
-  updated_at    DateTime    @updatedAt
-  enterprise    Enterprise? @relation(name: "EnterpriseToUser", fields: [enterprise_id], references: [id])
+  email         String       @unique
+  user_type     UserType     @default(USER)
+  created_at    DateTime     @default(now())
+  updated_at    DateTime     @updatedAt
+  enterprise    Enterprise[]
+  payments      Payments[]
 
   @@map("users")
 }
 
 model Enterprise {
-  id           String   @id @default(uuid())
-  fantasy_name String
-  document     String   @unique
-  status       Status   @default(ACTIVE)
-  address      String
-  number       String
-  city         String
-  state        String
-  lat          Float
-  long         Float
-  created_at   DateTime @default(now())
-  updated_at   DateTime @updatedAt
-  users        User[]   @relation(name: "EnterpriseToUser")
+  id                  String               @id @default(uuid())
+  fantasy_name        String
+  company_name        String?
+  document            String?
+  status              Status               @default(ACTIVE)
+  payment_day         Int?
+  finish_plan         DateTime?
+  zip_code            String
+  address             String
+  number              String
+  complement          String?
+  region              String
+  city                String
+  state               String
+  lat                 Float
+  long                Float
+  created_at          DateTime             @default(now())
+  updated_at          DateTime             @updatedAt
+  users               User[]
+  services_enterprise ServicesEnterprise[]
+  payments            Payments[]
+  orders              Order[]
 
   @@map("enterprises")
 }
 
-model ProductsEnterprise {
-  id         String   @id @default(uuid())
-  name       String
+model EnterpriseConfig {
+  id              String   @id @default(uuid())
+  logo_url        String?
+  primary_color   String?
+  secondary_color String?
+  slogan          String?
+  sales           Boolean  @default(true)
+  financial       Boolean  @default(false)
+  stock           Boolean  @default(false)
+  scheduling      Boolean  @default(false)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  @@map("enterprises_config")
+}
+
+model Payments {
+  id                 String     @id @default(uuid())
+  user_id            String
+  plan_id            String
+  enterprise_id      String
+  transaction_id     BigInt
+  transaction_amount Int
+  type_payment       String
+  status             String
+  status_detail      String
+  created_at         DateTime   @default(now())
+  updated_at         DateTime   @updatedAt
+  user               User       @relation(fields: [user_id], references: [id])
+  plan               Plan       @relation(fields: [plan_id], references: [id])
+  enterprise         Enterprise @relation(references: [id], fields: [enterprise_id])
+
+  @@map("payments")
+}
+
+model ServicesEnterprise {
+  id             String          @id @default(uuid())
+  enterprise_id  String
+  name           String
+  value          Int
+  stock_quantity Int             @default(0)
+  minimum_stock  Int? // Estoque mínimo antes de alertar reposição
+  created_at     DateTime        @default(now())
+  updated_at     DateTime        @updatedAt
+  enterprise     Enterprise      @relation(fields: [enterprise_id], references: [id])
+  services_order ServicesOrder[]
+
+  @@map("services_enterprise")
+}
+
+model Client {
+  id            String   @id @default(uuid())
+  enterprise_id String
+  name          String
+  document      String?  @unique
+  phone         String
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+  orders        Order[]
+
+  @@map("clients")
+}
+
+model Order {
+  id                String          @id @default(uuid())
+  client_id         String?
+  enterprise_id     String
+  car_license_plate String
+  payment_type      PaymentType?
+  status            StatusOrder     @default(INLINE)
+  total_value       Int
+  created_at        DateTime        @default(now())
+  updated_at        DateTime        @updatedAt
+  client            Client?         @relation(fields: [client_id], references: [id])
+  enterprise        Enterprise      @relation(fields: [enterprise_id], references: [id])
+  services_order    ServicesOrder[]
+
+  @@map("orders")
+}
+
+model ServicesOrder {
+  id         String             @id @default(uuid())
+  service_id String
+  order_id   String
   value      Int
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  created_at DateTime           @default(now())
+  updated_at DateTime           @updatedAt
+  service    ServicesEnterprise @relation(fields: [service_id], references: [id])
+  order      Order              @relation(fields: [order_id], references: [id])
 
-  @@map("products_enterprise")
-}
-
-model SalesEnterprise {
-  id         String                   @id @default(uuid())
-  total      Int
-  note       String
-  created_at DateTime                 @default(now())
-  updated_at DateTime                 @updatedAt
-  products   ProductsSaleEnterprise[]
-
-  @@map("sales_enterprise")
-}
-
-model ProductsSaleEnterprise {
-  id                  String           @id @default(uuid())
-  quantity            Int
-  value               Int
-  sales_enterprise_id String?
-  created_at          DateTime         @default(now())
-  updated_at          DateTime         @updatedAt
-  sales_enterprise    SalesEnterprise? @relation(fields: [sales_enterprise_id], references: [id])
-
-  @@map("products_sale_enterprise")
+  @@map("services_order")
 }

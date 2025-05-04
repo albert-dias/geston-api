@@ -3,7 +3,8 @@ declare namespace Express {
     user: {
       id: string;
       name: string;
-      user_type: 'SUPERADMIN' | 'USERENTERPRISE' | 'USER';
+      email: string;
+      user_type: 'SUPERADMIN' | 'ADMIN' | 'USER';
     };
   }
 }

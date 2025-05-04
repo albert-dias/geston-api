@@ -31,6 +31,7 @@ export class SessionsController {
       return res.status(400).json({ error: err.message });
     }
   }
+
   async refresh_token(req: Request, res: Response): Promise<Response> {
     try {
       const { refreshToken: tokenValue } = req.cookies;
@@ -57,6 +58,7 @@ export class SessionsController {
       return res.status(400).json({ error: err.message });
     }
   }
+
   async logout_all(req: Request, res: Response): Promise<Response> {
     try {
       const { refreshToken: tokenValue } = req.cookies;

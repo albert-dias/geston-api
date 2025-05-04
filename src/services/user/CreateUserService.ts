@@ -6,25 +6,29 @@ interface IRequest {
   name: string;
   email: string;
   password: string;
-  user_type: UserType;
+  document: string;
+  phone: string;
+  user_type?: UserType;
 }
 
 export async function CreateUserService({
+  document,
+  phone,
   name,
   email,
   password,
   user_type = 'USER',
 }: IRequest): Promise<User> {
   if (!name || !email || !password) {
-    throw new AppError('Token ausente!');
+    throw new AppError('Dados incompletos');
   }
 
   const user = await prisma.user.create({
-    data: { name, email, password, user_type },
+    data: { name, email, password, user_type, document, phone },
   });
 
   if (!user) {
-    throw new AppError('Create user error!');
+    throw new AppError('Erro ao criar usuário!');
   }
 
   return user;
