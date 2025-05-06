@@ -41,7 +41,7 @@ app.use((err: AxiosError, req: Request, res: any, next: NextFunction) => {
 io.sockets.on('connection', function (socket) {
   console.log('new connect. socket' + socket.id);
 
-  socket.on('clienteSolicitouPedido', async function (data: any) {
+  socket.on('customerEnterInLine', async function (data: any) {
     // const result = await CreateOrderService(data);
     // io.sockets.emit('pedidoSolicitado', result);
   });
@@ -56,4 +56,4 @@ io.sockets.on('connection', function (socket) {
   });
 });
 
-httpServer.listen(3340, () => console.log('Api is only port: 3340'));
+httpServer.listen(3338, () => console.log('🚘 - Api is only port: 3338'));
