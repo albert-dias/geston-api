@@ -20,14 +20,20 @@ export async function ShowClientEnterpriseService({
     include: {
       orders: {
         include: {
-          services_order: true,
+          items_order: {
+            include: {
+              service: true,
+            },
+          },
+          client: true,
+          employee: true,
         },
       },
     },
   });
 
   if (!result) {
-    throw new AppError('Erro ao atualizar cliente!');
+    throw new AppError('Cliente não encontrado');
   }
 
   return result;

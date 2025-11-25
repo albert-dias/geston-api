@@ -30,8 +30,13 @@ export class ServicesController {
   async list(req: Request, res: Response): Promise<Response> {
     try {
       const { enterprise_id } = req.params;
+      const { page, limit, search } = req.query;
+
       const result = await ListServicesEnterpriseService({
         enterprise_id,
+        page: page ? Number(page) : undefined,
+        limit: limit ? Number(limit) : undefined,
+        search: search as string | undefined,
       });
       return res.status(200).json(result);
     } catch (err: any) {

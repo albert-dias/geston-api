@@ -56,7 +56,11 @@ export async function ValidRefreshTokenUserService({
   const user = await prisma.user.findUnique({
     where: { id: validToken.user_id },
     include: {
-      enterprise: true,
+      enterprise: {
+        include: {
+          services_enterprise: true,
+        },
+      },
     },
   });
 
@@ -64,19 +68,48 @@ export async function ValidRefreshTokenUserService({
     throw new AppError('Usuário inexistente!');
   }
 
+  // Se o usuário não tem empresas na relação many-to-many mas tem enterprise_id,
+  // buscar a empresa diretamente e adicionar ao array
+  let userWithEnterprise = user;
+  if ((!user.enterprise || user.enterprise.length === 0) && user.enterprise_id) {
+    const enterprise = await prisma.enterprise.findUnique({
+      where: { id: user.enterprise_id },
+      include: {
+        services_enterprise: true,
+      },
+    });
+
+    if (enterprise) {
+      // Se a empresa existe mas não está relacionada, criar a relação
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          enterprise: {
+            connect: { id: enterprise.id },
+          },
+        },
+      });
+
+      userWithEnterprise = {
+        ...user,
+        enterprise: [enterprise],
+      };
+    }
+  }
+
   const { secret, expiresIn } = authConfig.jwt;
 
   const token = jwt.sign(
     {
-      name: user.name,
-      email: user.email,
-      user_type: user.user_type,
+      name: userWithEnterprise.name,
+      email: userWithEnterprise.email,
+      user_type: userWithEnterprise.user_type,
     },
     secret,
     {
-      subject: `${user.id}`,
+      subject: `${userWithEnterprise.id}`,
       expiresIn,
     }
   );
-  return { refreshToken, expiresRefreshToken: expires, token, user };
+  return { refreshToken, expiresRefreshToken: expires, token, user: userWithEnterprise };
 }

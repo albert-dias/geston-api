@@ -1,12 +1,13 @@
 import { AppError } from '@/utils/AppError';
 import { prisma } from '@/lib/prisma';
 import { ServicesEnterprise } from '@prisma/client';
+import { cache, CacheKeys } from '@/lib/cache';
 
 interface IRequest {
   enterprise_id: string;
   name: string;
   value: number;
-  stock_quantity: number;
+  stock_quantity?: number;
 }
 
 export async function CreateServiceEnterpriseService({
@@ -41,8 +42,11 @@ export async function CreateServiceEnterpriseService({
   });
 
   if (!result) {
-    throw new AppError('Erro ao criar produto!');
+    throw new AppError('Erro ao criar serviço!');
   }
+
+  // Invalidar cache de serviços da empresa
+  cache.deletePattern(`services:${enterprise_id}*`);
 
   return result;
 }

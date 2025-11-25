@@ -95,18 +95,19 @@ model Plan {
 }
 
 model User {
-  id            String       @id @default(uuid())
-  enterprise_id String?
-  name          String
-  document      String?
-  password      String
-  phone         String?
-  email         String       @unique
-  user_type     UserType     @default(USER)
-  created_at    DateTime     @default(now())
-  updated_at    DateTime     @updatedAt
-  enterprise    Enterprise[]
-  payments      Payments[]
+  id             String         @id @default(uuid())
+  enterprise_id  String?
+  name           String
+  document       String?
+  password       String
+  phone          String?
+  email          String         @unique
+  user_type      UserType       @default(USER)
+  created_at     DateTime       @default(now())
+  updated_at     DateTime       @updatedAt
+  enterprise     Enterprise[]
+  payments       Payments[]
+  cash_movements CashMovement[]
 
   @@map("users")
 }
@@ -134,6 +135,11 @@ model Enterprise {
   services_enterprise ServicesEnterprise[]
   payments            Payments[]
   orders              Order[]
+  employees           Employee[]
+  appointments        Appointment[]
+  cash_movements      CashMovement[]
+  vehicle_history     VehicleHistory[]
+  loyalty_program     LoyaltyProgram?
 
   @@map("enterprises")
 }
@@ -174,59 +180,185 @@ model Payments {
 }
 
 model ServicesEnterprise {
-  id             String          @id @default(uuid())
+  id             String       @id @default(uuid())
   enterprise_id  String
   name           String
   value          Int
-  stock_quantity Int             @default(0)
+  stock_quantity Int          @default(0)
   minimum_stock  Int? // Estoque mínimo antes de alertar reposição
-  created_at     DateTime        @default(now())
-  updated_at     DateTime        @updatedAt
-  enterprise     Enterprise      @relation(fields: [enterprise_id], references: [id])
-  services_order ServicesOrder[]
+  created_at     DateTime     @default(now())
+  updated_at     DateTime     @updatedAt
+  enterprise     Enterprise   @relation(fields: [enterprise_id], references: [id])
+  items_order    ItemsOrder[]
 
   @@map("services_enterprise")
 }
 
 model Client {
-  id            String   @id @default(uuid())
-  enterprise_id String
-  name          String
-  document      String?  @unique
-  phone         String
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
-  orders        Order[]
+  id             String                @id @default(uuid())
+  enterprise_id  String
+  name           String
+  document       String?               @unique
+  phone          String
+  created_at     DateTime              @default(now())
+  updated_at     DateTime              @updatedAt
+  orders         Order[]
+  appointments   Appointment[]
+  loyalty_points ClientLoyaltyPoints[]
 
   @@map("clients")
 }
 
 model Order {
-  id                String          @id @default(uuid())
+  id                String           @id @default(uuid())
   client_id         String?
   enterprise_id     String
+  employee_id       String?
+  appointment_id    String?
   car_license_plate String
   payment_type      PaymentType?
-  status            StatusOrder     @default(INLINE)
+  status            StatusOrder      @default(INLINE)
   total_value       Int
-  created_at        DateTime        @default(now())
-  updated_at        DateTime        @updatedAt
-  client            Client?         @relation(fields: [client_id], references: [id])
-  enterprise        Enterprise      @relation(fields: [enterprise_id], references: [id])
-  services_order    ServicesOrder[]
+  created_at        DateTime         @default(now())
+  updated_at        DateTime         @updatedAt
+  client            Client?          @relation(fields: [client_id], references: [id])
+  enterprise        Enterprise       @relation(fields: [enterprise_id], references: [id])
+  employee          Employee?        @relation(fields: [employee_id], references: [id])
+  appointment       Appointment?     @relation(fields: [appointment_id], references: [id])
+  items_order       ItemsOrder[]
+  vehicle_history   VehicleHistory[]
+  cash_movements    CashMovement[]
 
+  @@index([car_license_plate, enterprise_id])
   @@map("orders")
 }
 
-model ServicesOrder {
+model ItemsOrder {
   id         String             @id @default(uuid())
   service_id String
   order_id   String
   value      Int
+  quantity   Int                @default(1)
   created_at DateTime           @default(now())
   updated_at DateTime           @updatedAt
   service    ServicesEnterprise @relation(fields: [service_id], references: [id])
   order      Order              @relation(fields: [order_id], references: [id])
 
-  @@map("services_order")
+  @@map("items_order")
+}
+
+// Sistema de Agendamento
+model Appointment {
+  id                String            @id @default(uuid())
+  enterprise_id     String
+  client_id         String?
+  car_license_plate String
+  scheduled_date    DateTime
+  status            AppointmentStatus @default(SCHEDULED)
+  notes             String?
+  service_ids       String[]          @default([]) // Array de IDs de serviços
+  created_at        DateTime          @default(now())
+  updated_at        DateTime          @updatedAt
+  enterprise        Enterprise        @relation(fields: [enterprise_id], references: [id])
+  client            Client?           @relation(fields: [client_id], references: [id])
+  orders            Order[]
+
+  @@index([enterprise_id, scheduled_date])
+  @@index([car_license_plate, enterprise_id])
+  @@map("appointments")
+}
+
+// Funcionários
+model Employee {
+  id              String           @id @default(uuid())
+  enterprise_id   String
+  name            String
+  document        String
+  phone           String
+  email           String?
+  role            String // "LAVADOR", "ATENDENTE", "GERENTE"
+  commission_rate Float? // % de comissão (0.0 a 1.0)
+  status          Status           @default(ACTIVE)
+  created_at      DateTime         @default(now())
+  updated_at      DateTime         @updatedAt
+  enterprise      Enterprise       @relation(fields: [enterprise_id], references: [id])
+  orders          Order[]
+  cash_movements  CashMovement[]
+  vehicle_history VehicleHistory[]
+
+  @@index([enterprise_id, status])
+  @@map("employees")
+}
+
+// Movimentações de Caixa
+model CashMovement {
+  id            String           @id @default(uuid())
+  enterprise_id String
+  type          CashMovementType
+  amount        Int
+  description   String
+  order_id      String?
+  employee_id   String?
+  created_by    String
+  created_at    DateTime         @default(now())
+  enterprise    Enterprise       @relation(fields: [enterprise_id], references: [id])
+  order         Order?           @relation(fields: [order_id], references: [id])
+  employee      Employee?        @relation(fields: [employee_id], references: [id])
+  user          User             @relation(fields: [created_by], references: [id])
+
+  @@index([enterprise_id, created_at])
+  @@index([type, enterprise_id])
+  @@map("cash_movements")
+}
+
+// Histórico de Veículos
+model VehicleHistory {
+  id                String     @id @default(uuid())
+  enterprise_id     String
+  car_license_plate String
+  order_id          String
+  services          String[] // Array de nomes de serviços
+  total_value       Int
+  client_id         String?
+  employee_id       String?
+  created_at        DateTime   @default(now())
+  enterprise        Enterprise @relation(fields: [enterprise_id], references: [id])
+  order             Order      @relation(fields: [order_id], references: [id])
+  employee          Employee?  @relation(fields: [employee_id], references: [id])
+
+  @@index([car_license_plate, enterprise_id, created_at])
+  @@index([client_id])
+  @@map("vehicle_history")
+}
+
+// Programa de Fidelidade
+model LoyaltyProgram {
+  id                 String                @id @default(uuid())
+  enterprise_id      String
+  points_per_order   Int                   @default(1)
+  discount_per_point Float                 @default(0.01) // % de desconto por ponto (padrão 0.01%)
+  active             Boolean               @default(true)
+  created_at         DateTime              @default(now())
+  updated_at         DateTime              @updatedAt
+  enterprise         Enterprise            @relation(fields: [enterprise_id], references: [id])
+  client_points      ClientLoyaltyPoints[]
+
+  @@unique([enterprise_id])
+  @@map("loyalty_programs")
+}
+
+// Pontos de Fidelidade dos Clientes
+model ClientLoyaltyPoints {
+  id         String         @id @default(uuid())
+  client_id  String
+  program_id String
+  points     Int            @default(0)
+  created_at DateTime       @default(now())
+  updated_at DateTime       @updatedAt
+  client     Client         @relation(fields: [client_id], references: [id])
+  program    LoyaltyProgram @relation(fields: [program_id], references: [id])
+
+  @@unique([client_id, program_id])
+  @@index([client_id])
+  @@map("client_loyalty_points")
 }

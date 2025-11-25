@@ -112,6 +112,6 @@ export async function GetOrdersSummaryByDateService({
 
   return {
     day_summary,
-    monthly_summary,
+    monthly_summary: monthly_summary || [],
   };
 }

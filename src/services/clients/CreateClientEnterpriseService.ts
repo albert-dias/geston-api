@@ -1,11 +1,12 @@
 import { AppError } from '@/utils/AppError';
 import { prisma } from '@/lib/prisma';
-import { Client, ServicesEnterprise } from '@prisma/client';
+import { Client } from '@prisma/client';
+import { cache, CacheKeys } from '@/lib/cache';
 
 interface IRequest {
   enterprise_id: string;
   name: string;
-  document: string;
+  document?: string;
   phone: string;
 }
 
@@ -15,8 +16,11 @@ export async function CreateClientEnterpriseService({
   document,
   phone,
 }: IRequest): Promise<Client> {
-  if (!name || !enterprise_id || !document || !phone) {
-    throw new AppError('Dados incompletos');
+  if (!name || !enterprise_id || !phone) {
+    throw AppError.badRequest('Dados incompletos', {
+      required: ['name', 'enterprise_id', 'phone'],
+      received: { name: !!name, enterprise_id: !!enterprise_id, phone: !!phone },
+    });
   }
 
   const enterpriseExists = await prisma.enterprise.findUnique({
@@ -24,21 +28,24 @@ export async function CreateClientEnterpriseService({
   });
 
   if (!enterpriseExists) {
-    throw new AppError('Empresa não encontrada');
+    throw AppError.notFound('Empresa não encontrada');
   }
 
   const result = await prisma.client.create({
     data: {
       name,
-      document,
+      document: document || null,
       phone,
       enterprise_id,
     },
   });
 
   if (!result) {
-    throw new AppError('Erro ao criar clientes!');
+    throw AppError.internal('Erro ao criar cliente');
   }
+
+  // Invalidar cache de clientes da empresa
+  cache.deletePattern(`clients:${enterprise_id}*`);
 
   return result;
 }

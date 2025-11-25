@@ -47,7 +47,9 @@ export async function ListOrdersEnterpriseService({
       },
     },
     include: {
-      services_order: { include: { service: true } },
+      items_order: { include: { service: true } },
+      client: true,
+      employee: true,
     },
     orderBy: { created_at: 'asc' },
   });

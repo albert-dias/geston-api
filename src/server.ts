@@ -2,9 +2,12 @@ import express, { NextFunction, Request, Response } from 'express';
 import 'express-async-errors';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import swaggerUi from 'swagger-ui-express';
 import routes from '@/routes';
-import { AppError } from '@/utils/AppError';
-import { AxiosError } from 'axios';
+import { errorHandler } from '@/middlewares/errorHandler';
+import { swaggerSpec } from '@/config/swagger';
 import socketio from 'socket.io';
 import { createServer } from 'http';
 
@@ -13,30 +16,66 @@ const app = express();
 const httpServer = createServer(app);
 const io = new socketio.Server(httpServer, {
   cors: {
-    origin: '*',
+    origin: process.env.FRONTEND_URL || '*',
     methods: ['GET', 'POST', 'PUT'],
+    credentials: true,
   },
 });
 
+// Segurança
+app.use(helmet());
+
+// CORS configurado de forma mais segura
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || '*',
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 100, // máximo 100 requisições por IP no período
+  message: 'Muitas requisições deste IP, tente novamente em alguns minutos.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use(limiter);
+
+// Rate limiting mais restritivo para rotas de autenticação
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5, // máximo 5 tentativas de login por IP no período
+  message: 'Muitas tentativas de login, tente novamente em alguns minutos.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use('/sessions', authLimiter);
+
 app.use(cookieParser());
-app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+
+// Documentação da API
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+// Health check
+app.get('/health', (req: Request, res: Response) => {
+  res.status(200).json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  });
+});
 
 app.use(routes);
 
-app.use((err: AxiosError, req: Request, res: any, next: NextFunction) => {
-  if (err instanceof AppError) {
-    return res.status(err.statusCode).json({
-      status: 'error',
-      message: err.message,
-    });
-  }
-
-  return res.status(500).json({
-    status: 'error',
-    message: `Internal server error: ${err.message}'`,
-  });
-});
+// Middleware global de tratamento de erros (deve ser o último)
+app.use(errorHandler);
 
 io.sockets.on('connection', function (socket) {
   console.log('new connect. socket' + socket.id);

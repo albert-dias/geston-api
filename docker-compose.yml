@@ -1,0 +1,26 @@
+services:
+  apcap-api:
+    image: albert1986/geston-api:1.0.3
+    container_name: geston-api
+    restart: unless-stopped
+    networks:
+      - web
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: "web"
+      traefik.http.routers.apcap-api.rule: "Host(`apigeston.yazon.com.br`)"
+      traefik.http.routers.apcap-api.entrypoints: "websecure"
+      traefik.http.routers.apcap-api.tls.certresolver: "letsencrypt"
+      traefik.http.services.apcap-api.loadbalancer.server.port: "3338"
+    ports:
+      - "3338:3338"
+    environment:
+      NODE_ENV: production
+      PORT: 3338
+    env_file:
+      - .env
+    volumes:
+      - ./uploads:/app/uploads
+networks:
+  web:
+    external: true

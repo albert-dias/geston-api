@@ -86,11 +86,14 @@ export class OrdersController {
     try {
       const { enterprise_id } = req.params;
       const { order_id, payment_type, status } = req.body;
+      const user_id = req.user?.id as string | undefined;
+      
       const result = await UpdateOrderEnterpriseService({
         enterprise_id,
         order_id,
         payment_type,
         status,
+        user_id,
       });
       return res.status(200).json(result);
     } catch (err: any) {
