@@ -1,6 +1,6 @@
 services:
   apcap-api:
-    image: albert1986/geston-api:1.0.3
+    image: albert1986/geston-api:1.0.4
     container_name: geston-api
     restart: unless-stopped
     networks:

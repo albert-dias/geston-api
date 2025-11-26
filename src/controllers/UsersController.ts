@@ -55,13 +55,49 @@ export class UsersController {
       });
       return res.status(201).json(result);
     } catch (err: any) {
+      console.error('Erro ao criar conta:', err);
+      
       if (err instanceof AppError) {
         return res.status(err.statusCode).json({
           status: 'error',
           message: err.message,
         });
       }
-      return res.status(400).json({ error: err.message });
+
+      // Tratar erros do Prisma
+      if (err.code === 'P2002') {
+        // Unique constraint violation
+        const target = err.meta?.target || [];
+        let field = 'campo';
+        if (target.includes('email')) {
+          field = 'E-mail já está em uso';
+        } else if (target.includes('document')) {
+          field = 'CPF já está em uso';
+        } else if (target.includes('phone')) {
+          field = 'Telefone já está em uso';
+        } else {
+          field = 'Já existe um registro com estes dados';
+        }
+        return res.status(409).json({
+          status: 'error',
+          message: field,
+        });
+      }
+
+      // Outros erros do Prisma
+      if (err.code && err.code.startsWith('P')) {
+        console.error('Erro do Prisma:', err.code, err.meta);
+        return res.status(400).json({
+          status: 'error',
+          message: 'Erro ao processar os dados. Verifique as informações e tente novamente.',
+        });
+      }
+
+      // Erros genéricos
+      return res.status(400).json({
+        status: 'error',
+        message: err.message || 'Erro ao criar conta. Tente novamente.',
+      });
     }
   }
 

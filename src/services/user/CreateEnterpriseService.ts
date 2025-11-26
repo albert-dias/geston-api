@@ -1,6 +1,7 @@
 import { AppError } from '@/utils/AppError';
 import { prisma } from '@/lib/prisma';
 import { Enterprise, UserType } from '@prisma/client';
+import bcryptjs from 'bcryptjs';
 
 interface IRequest {
   name: string;
@@ -57,6 +58,9 @@ export async function CreateEnterpriseService({
     throw new AppError('Dados incompletos');
   }
 
+  // Hash da senha antes de salvar
+  const hashedPassword = await bcryptjs.hash(password, 8);
+
   const enterprise = await prisma.enterprise.create({
     data: {
       fantasy_name,
@@ -70,7 +74,7 @@ export async function CreateEnterpriseService({
       state,
       lat,
       long,
-      users: { create: { name, email, password, user_type, document, phone } },
+      users: { create: { name, email, password: hashedPassword, user_type, document, phone } },
     },
   });
 
